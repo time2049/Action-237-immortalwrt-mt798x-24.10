@@ -15,6 +15,11 @@ name: 编译 ImmortalWrt 24.10 Kernel 6.6 (360T7 纯净版)
 on:
   repository_dispatch:
   workflow_dispatch:
+  schedule:
+    # 表达式格式：分 时 日 月 周
+    # 注意：使用 UTC 时间！
+    # UTC 时间每周日 20:00 对应 北京时间（UTC+8）每周一 04:00
+    - cron: '0 20 * * 0'
 
 env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
