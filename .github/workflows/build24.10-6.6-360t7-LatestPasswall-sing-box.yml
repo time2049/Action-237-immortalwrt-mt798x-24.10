@@ -1,7 +1,7 @@
 #
 # https://github.com/P3TERX/Actions-OpenWrt
 #
-# File: .github/workflows/openwrt-bulder.yml
+# File: .github/workflows/openwrt-builder.yml
 # Description: Build OpenWrt using GitHub Actions
 #
 # Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
@@ -10,7 +10,7 @@
 # See /LICENSE for more information.
 #
 
-name: Build immortalwrt24.10-6.6 360T7 Latest Passwall+Sing-box
+name: Build immortalwrt24.10-6.6 360T7 Minimal
 
 on:
   repository_dispatch:
@@ -20,7 +20,7 @@ env:
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
   REPO_BRANCH: openwrt-24.10-6.6
   FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: 2410-6.6-360t7-passwall-sing-box.config
+  CONFIG_FILE: 2410-6.6-360t7-minimal.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: 2410-6.6-diy-part2-6-1-pw.sh
   RELEASE_FILE: 2410-6.6-pw-release.txt  
@@ -67,29 +67,18 @@ jobs:
 
     - name: Update feeds
       run: |
-         cd openwrt
-         ./scripts/feeds update -a
-         rm -rf feeds/packages/lang/golang
-         git clone https://github.com/kenzok8/golang -b 1.25 feeds/packages/lang/golang
-
+        cd openwrt
+        ./scripts/feeds update -a
+        rm -rf feeds/packages/lang/golang
+        git clone https://github.com/kenzok8/golang -b 1.25 feeds/packages/lang/golang
 
     - name: Install feeds
       run: |
         cd openwrt
         ./scripts/feeds install -a 
-        
-        # 移除 openwrt feeds 自带的核心库
-        rm -rf feeds/packages/net/{xray-core,v2ray-geodata,sing-box,chinadns-ng,dns2socks,hysteria,ipt2socks,microsocks,naiveproxy,shadowsocks-rust,shadowsocksr-libev,simple-obfs,tcping,v2ray-plugin,xray-plugin,geoview,shadow-tls}
-        git clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/passwall-packages
 
-        # 移除 openwrt feeds 过时的luci版本
-        rm -rf feeds/luci/applications/luci-app-passwall
-        git clone https://github.com/Openwrt-Passwall/openwrt-passwall package/passwall-luci
-        
-         
     - name: Load custom configuration
       run: |
-        # [ -e files ] && mv files openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
         cd openwrt
@@ -114,7 +103,6 @@ jobs:
         grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
         [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
         echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
-
 
     - name: Check space usage
       if: (!cancelled())
@@ -149,13 +137,8 @@ jobs:
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch "${RELEASE_FILE}"
-
-        if [ "${UPLOAD_GOFILE}" = "true" ] && [ -n "${{ steps.gofile.outputs.url }}" ]; then
-          echo "{U+0001F517} [GoFile](${{ steps.gofile.outputs.url }})" >> "${RELEASE_FILE}"
-        fi
-
         echo "status=success" >> $GITHUB_OUTPUT
-    
+
     - name: Upload firmware to release
       uses: softprops/action-gh-release@v2
       if: steps.tag.outputs.status == 'success' && !cancelled()
