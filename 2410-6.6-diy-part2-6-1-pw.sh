@@ -10,17 +10,11 @@
 # See /LICENSE for more information.
 #
 
-# Modify default IP
+# 修改默认 IP 为 192.168.6.1
 sed -i 's/192.168.1.1/192.168.6.1/g' package/base-files/files/bin/config_generate
 
-# Modify default theme
-#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
+# 修改主机名 (去除 PW 标识)
+sed -i 's/ImmortalWrt/ImmortalWrt-24.10-6.6-$(shell TZ="Asia/Shanghai" date +"%Y%m%d")/g' package/base-files/files/bin/config_generate
 
-# Modify hostname
-sed -i 's/ImmortalWrt/ImmortalWrt-24.10-6.6-PW-$(shell TZ="Asia/Shanghai" date +"%Y%m%d")/g' package/base-files/files/bin/config_generate
-
-# Modify filename, add date prefix
-sed -i 's|IMG_PREFIX:=|IMG_PREFIX:=$(shell TZ="Asia/Shanghai" date +"%Y%m%d")-PW-24.10-6.6-|' include/image.mk
-
-# Modify ppp-down, add sleep 3. 2025-6-13 source code is update, no need this
-#sed -i '$a\\sleep 3' package/network/services/ppp/files/lib/netifd/ppp-down
+# 修改固件输出文件名，添加日期前缀 (去除 PW 标识)
+sed -i 's|IMG_PREFIX:=|IMG_PREFIX:=$(shell TZ="Asia/Shanghai" date +"%Y%m%d")-24.10-6.6-|' include/image.mk
