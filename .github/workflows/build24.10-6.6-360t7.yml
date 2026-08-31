@@ -17,7 +17,6 @@ on:
   workflow_dispatch:
   schedule:
     # 表达式格式：分 时 日 月 周
-    # 注意：使用 UTC 时间！
     # UTC 时间每周日 20:00 对应 北京时间（UTC+8）每周一 04:00
     - cron: '0 20 * * 0'
 
@@ -84,7 +83,7 @@ jobs:
 
     - name: 加载自定义设置 (.config & 自定义脚本)
       run: |
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        [ -e $CONFIG_FILE ] && cp $CONFIG_FILE openwrt/.config
         chmod +x $DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
@@ -94,6 +93,9 @@ jobs:
       run: |
         cd openwrt
         make defconfig
+        echo "=== 当前选中的目标架构 ==="
+        grep 'CONFIG_TARGET.*=y' .config
+        echo "========================="
         make download -j8
         find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
@@ -122,9 +124,9 @@ jobs:
 
     - name: 整理编译好的固件文件
       id: organize
-      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
       run: |
-        cd openwrt/bin/targets/*/*
+        cd openwrt/bin/targets/mediatek/filogic
         rm -rf packages
         echo "FIRMWARE=$PWD" >> $GITHUB_ENV
         echo "status=success" >> $GITHUB_OUTPUT
@@ -138,7 +140,7 @@ jobs:
 
     - name: 生成 Release 标签
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: env.UPLOAD_RELEASE == 'true' && steps.organize.outputs.status == 'success' && !cancelled()
       run: |
         echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
         touch "${RELEASE_FILE}"
