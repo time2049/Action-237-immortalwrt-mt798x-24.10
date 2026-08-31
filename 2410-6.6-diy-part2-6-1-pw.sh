@@ -16,8 +16,9 @@ sed -i "s/ImmortalWrt/ImmortalWrt-24.10-6.6-${CURRENT_DATE}/g" package/base-file
 sed -i 's|IMG_PREFIX:=|IMG_PREFIX:=$(shell TZ="Asia/Shanghai" date +"%Y%m%d")-24.10-6.6-|' include/image.mk
 
 # -------------------------------------------------------------------
-# 4. 物理删除不需要的软件包目录（防止 make defconfig 自动补全依赖）
+# 4. 物理删除不需要的软件包目录
 # -------------------------------------------------------------------
+
 rm -rf feeds/luci/applications/luci-app-passwall
 rm -rf feeds/packages/net/passwall
 rm -rf feeds/packages/net/sing-box
@@ -27,12 +28,3 @@ rm -rf feeds/packages/net/ddns-go
 rm -rf feeds/luci/applications/luci-app-ddns-go
 rm -rf feeds/luci/applications/luci-app-vlmcsd
 rm -rf feeds/packages/net/vlmcsd
-
-# -------------------------------------------------------------------
-# 5. 修复 Linux 6.6 内核 mtk_eth_soc.c 中 MTK_WIFI_CHIP_ONLINE 未定义问题
-# -------------------------------------------------------------------
-find target/linux/mediatek/ -name "mtk_eth_soc.h" -exec sed -i '/#define.*MTK_ETH_SOC_H/a \
-#ifndef MTK_WIFI_CHIP_ONLINE\n#define MTK_WIFI_CHIP_ONLINE 1\n#endif\n#ifndef MTK_WIFI_CHIP_OFFLINE\n#define MTK_WIFI_CHIP_OFFLINE 0\n#endif' {} +
-
-find target/linux/mediatek/ -name "mtk_eth_soc.c" -exec sed -i '/#include/a \
-#ifndef MTK_WIFI_CHIP_ONLINE\n#define MTK_WIFI_CHIP_ONLINE 1\n#endif\n#ifndef MTK_WIFI_CHIP_OFFLINE\n#define MTK_WIFI_CHIP_OFFLINE 0\n#endif' {} +
