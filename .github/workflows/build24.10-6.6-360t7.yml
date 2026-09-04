@@ -1,46 +1,37 @@
 #
-# 360 T7 / MT7981 / Filogic
-# ImmortalWrt 24.10 / Kernel 6.6
-# 纯净版
+# https://github.com/P3TERX/Actions-OpenWrt
+#
+# File: .github/workflows/openwrt-builder.yml
+# Description: Build OpenWrt using GitHub Actions
+#
+# Copyright (c) 2019-2024 P3TERX <https://p3terx.com>
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
 #
 
 name: 编译 ImmortalWrt 24.10 Kernel 6.6 (360T7 纯净版)
 
 on:
-  workflow_dispatch:
   repository_dispatch:
+  workflow_dispatch:
   schedule:
-    # 每周日 UTC 20:00
-    # 北京时间每周一 04:00
+    # 表达式格式：分 时 日 月 周
+    # 注意：使用 UTC 时间！
+    # UTC 时间每周日 20:00 对应 北京时间（UTC+8）每周一 04:00
     - cron: '0 20 * * 0'
 
-permissions:
-  contents: write
-
 env:
-  # ==========================================================
-  # 源码
-  # ==========================================================
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
   REPO_BRANCH: openwrt-24.10-6.6
-
-  # ==========================================================
-  # 编译配置
-  # ==========================================================
   FEEDS_CONF: feeds.conf.default
   CONFIG_FILE: 2410-6.6-360t7.config
   DIY_P1_SH: diy-part1.sh
   DIY_P2_SH: diy-part2.sh
-
-  RELEASE_FILE: 2410-6.6-release.txt
-
-  # ==========================================================
-  # 输出设置
-  # ==========================================================
+  RELEASE_FILE: 2410-6.6-release.txt  
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
-
   TZ: Asia/Shanghai
 
 jobs:
@@ -48,410 +39,132 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+    - name: 检查代码仓库 (Checkout)
+      uses: actions/checkout@main
 
-      # ========================================================
-      # 1. Checkout 自己的编译仓库
-      # ========================================================
-      - name: 检查代码仓库
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+    - name: 初始化编译环境
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        sudo docker image prune --all --force
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install ack antlr3 asciidoc autoconf automake autopoint binutils bison build-essential bzip2 ccache clang cmake cpio curl device-tree-compiler ecj fastjar flex gawk gettext gcc-multilib g++-multilib git gnutls-dev gperf haveged help2man intltool lib32gcc-s1 libc6-dev-i386 libelf-dev libglib2.0-dev libgmp3-dev libltdl-dev libmpc-dev libmpfr-dev libncurses-dev libpython3-dev libreadline-dev libssl-dev libtool libyaml-dev libz-dev lld llvm lrzsz mkisofs msmtp nano ninja-build p7zip p7zip-full patch pkgconf python3 python3-pip python3-ply python3-docutils python3-pyelftools qemu-utils re2c rsync scons squashfs-tools subversion swig texinfo uglifyjs upx-ucl unzip vim wget xmlto xxd zlib1g-dev zstd
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
 
-      # ========================================================
-      # 2. 初始化编译环境
-      # ========================================================
-      - name: 初始化编译环境
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo rm -rf /etc/apt/sources.list.d/*
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /usr/local/lib/android
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
+    - name: 克隆源码 (Clone Source)
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $REPO_URL -b $REPO_BRANCH openwrt
+        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
-          sudo -E apt-get update -qq
+    - name: 加载自定义 Feeds 配置
+      run: |
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
+        chmod +x $DIY_P1_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P1_SH
 
-          sudo -E apt-get install -y --no-install-recommends \
-            ack \
-            antlr3 \
-            asciidoc \
-            autoconf \
-            automake \
-            autopoint \
-            binutils \
-            bison \
-            build-essential \
-            bzip2 \
-            ccache \
-            clang \
-            cmake \
-            cpio \
-            curl \
-            device-tree-compiler \
-            ecj \
-            fastjar \
-            flex \
-            gawk \
-            gettext \
-            gcc-multilib \
-            g++-multilib \
-            git \
-            gnutls-dev \
-            gperf \
-            haveged \
-            help2man \
-            intltool \
-            lib32gcc-s1 \
-            libc6-dev-i386 \
-            libelf-dev \
-            libglib2.0-dev \
-            libgmp3-dev \
-            libltdl-dev \
-            libmpc-dev \
-            libmpfr-dev \
-            libncurses-dev \
-            libpython3-dev \
-            libreadline-dev \
-            libssl-dev \
-            libtool \
-            libyaml-dev \
-            libz-dev \
-            lld \
-            llvm \
-            lrzsz \
-            mkisofs \
-            msmtp \
-            nano \
-            ninja-build \
-            p7zip \
-            p7zip-full \
-            patch \
-            pkgconf \
-            python3 \
-            python3-pip \
-            python3-ply \
-            python3-docutils \
-            python3-pyelftools \
-            qemu-utils \
-            re2c \
-            rsync \
-            scons \
-            squashfs-tools \
-            subversion \
-            swig \
-            texinfo \
-            uglifyjs \
-            upx-ucl \
-            unzip \
-            vim \
-            wget \
-            xmlto \
-            xxd \
-            zlib1g-dev \
-            zstd
+    - name: 更新 Feeds 源
+      run: |
+        cd openwrt
+        ./scripts/feeds update -a
+        rm -rf feeds/packages/lang/golang
+        git clone https://github.com/kenzok8/golang -b 1.25 feeds/packages/lang/golang
 
-          sudo -E apt-get autoremove -y
-          sudo -E apt-get clean
+    - name: 安装 Feeds 软件包
+      run: |
+        cd openwrt
+        ./scripts/feeds install -a 
 
-          sudo timedatectl set-timezone "$TZ"
+    - name: 加载自定义设置 (.config & 自定义脚本)
+      run: |
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
+        chmod +x $DIY_P2_SH
+        cd openwrt
+        $GITHUB_WORKSPACE/$DIY_P2_SH
 
-          sudo mkdir -p /workdir
-          sudo chown "$USER:$GROUPS" /workdir
+    - name: 下载依赖软件包 (Download packages)
+      id: package
+      run: |
+        cd openwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
 
-          df -hT
+    - name: 编译固件 (Compile Firmware)
+      id: compile
+      run: |
+        cd openwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> $GITHUB_OUTPUT
+        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
+        [ -s DEVICE_NAME ] && echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> $GITHUB_ENV
+        echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> $GITHUB_ENV
 
-      # ========================================================
-      # 3. 克隆 ImmortalWrt 24.10 / Kernel 6.6
-      # ========================================================
-      - name: 克隆源码
-        working-directory: /workdir
-        run: |
-          git clone \
-            --depth=1 \
-            --single-branch \
-            -b "$REPO_BRANCH" \
-            "$REPO_URL" \
-            openwrt
+    - name: 检查磁盘空间占用
+      if: (!cancelled())
+      run: df -hT
 
-          ln -sfn /workdir/openwrt "$GITHUB_WORKSPACE/openwrt"
+    - name: 上传 bin 目录 artifacts
+      uses: actions/upload-artifact@main
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
+      with:
+        name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: openwrt/bin
 
-          cd /workdir/openwrt
+    - name: 整理编译好的固件文件
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd openwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
 
-          echo "========================================"
-          echo "源码仓库：$REPO_URL"
-          echo "源码分支：$REPO_BRANCH"
-          echo "源码版本："
-          git log -1 --oneline
-          echo "========================================"
+    - name: 上传固件 artifacts 到 GitHub Actions
+      uses: actions/upload-artifact@main
+      if: steps.organize.outputs.status == 'success' && !cancelled()
+      with:
+        name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
+        path: ${{ env.FIRMWARE }}
 
-      # ========================================================
-      # 4. 加载 feeds.conf.default
-      # ========================================================
-      - name: 加载自定义 Feeds 配置
-        run: |
-          if [ -e "$FEEDS_CONF" ]; then
-            cp "$FEEDS_CONF" openwrt/feeds.conf.default
-          fi
+    - name: 生成 Release 标签
+      id: tag
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      run: |
+        echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
+        touch "${RELEASE_FILE}"
+        echo "status=success" >> $GITHUB_OUTPUT
 
-          chmod +x "$DIY_P1_SH"
+    - name: 发布固件到 Release 页面
+      uses: softprops/action-gh-release@v2
+      if: steps.tag.outputs.status == 'success' && !cancelled()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
+        body_path: ${{ env.RELEASE_FILE }}
+        files: ${{ env.FIRMWARE }}/*
 
-          cd openwrt
+    - name: 清理历史 Workflow 运行记录
+      uses: Mattraks/delete-workflow-runs@main
+      with:
+        retain_days: 0
+        keep_minimum_runs: 2
 
-          "$GITHUB_WORKSPACE/$DIY_P1_SH"
-
-          echo "========== feeds.conf.default =========="
-          cat feeds.conf.default
-          echo "========================================"
-
-      # ========================================================
-      # 5. 更新 Feeds
-      # ========================================================
-      - name: 更新 Feeds
-        run: |
-          cd openwrt
-
-          ./scripts/feeds update -a
-
-      # ========================================================
-      # 6. 安装 Feeds
-      # ========================================================
-      - name: 安装 Feeds 软件包
-        run: |
-          cd openwrt
-
-          ./scripts/feeds install -a
-
-      # ========================================================
-      # 7. 加载 .config 和 DIY part2
-      # ========================================================
-      - name: 加载自定义设置
-        run: |
-          if [ ! -f "$CONFIG_FILE" ]; then
-            echo "ERROR: 找不到配置文件：$CONFIG_FILE"
-            exit 1
-          fi
-
-          cp "$CONFIG_FILE" openwrt/.config
-
-          chmod +x "$DIY_P2_SH"
-
-          cd openwrt
-
-          "$GITHUB_WORKSPACE/$DIY_P2_SH"
-
-      # ========================================================
-      # 8. 生成最终配置
-      # ========================================================
-      - name: 生成最终配置
-        run: |
-          cd openwrt
-
-          echo "========================================"
-          echo "执行 make defconfig"
-          echo "========================================"
-
-          make defconfig
-
-          echo ""
-          echo "========== TARGET =========="
-          grep '^CONFIG_TARGET.*=y' .config || true
-
-          echo ""
-          echo "========== DEVICE =========="
-          grep '^CONFIG_TARGET.*DEVICE.*=y' .config || true
-
-          echo ""
-          echo "========== KERNEL =========="
-          grep '^CONFIG_KERNEL' .config || true
-
-          echo ""
-          echo "========================================"
-
-      # ========================================================
-      # 9. 检查关键源码
-      #
-      # 注意：
-      # 不再强制检查 MTK_WIFI_CHIP_ONLINE / OFFLINE。
-      # 某些版本中 mtk_eth_soc.c 会引用这些符号，
-      # 但对应定义来自不同 MTK WiFi/WED 补丁。
-      #
-      # 这里仅检查 360T7 目标和 kernel 版本，避免
-      # 检查步骤本身干扰正常编译。
-      # ========================================================
-      - name: 检查 360T7 源码环境
-        run: |
-          cd openwrt
-
-          echo "========================================"
-          echo "360T7 编译环境检查"
-          echo "========================================"
-
-          echo ""
-          echo "----- Target -----"
-          grep '^CONFIG_TARGET_mediatek' .config || true
-
-          echo ""
-          echo "----- 360T7 Device -----"
-          grep 'CONFIG_TARGET_mediatek_filogic_DEVICE_qihoo_360t7=y' .config || true
-
-          echo ""
-          echo "----- Kernel -----"
-          grep '^CONFIG_LINUX_6_6=y' .config || true
-
-          echo ""
-          echo "----- MTK Ethernet Driver -----"
-          if [ -f target/linux/mediatek/files-6.6/drivers/net/ethernet/mediatek/mtk_eth_soc.c ]; then
-            echo "找到 mtk_eth_soc.c"
-          elif [ -f target/linux/mediatek/files-6.6/drivers/net/ethernet/mediatek/mtk_eth_soc.c ]; then
-            echo "找到 mtk_eth_soc.c"
-          else
-            echo "使用内核源码中的 mtk_eth_soc.c"
-          fi
-
-          echo ""
-          echo "========================================"
-
-      # ========================================================
-      # 10. 下载依赖
-      # ========================================================
-      - name: 下载依赖软件包
-        id: package
-        run: |
-          cd openwrt
-
-          make download -j8
-
-          find dl -size -1024c -exec ls -l {} \; || true
-          find dl -size -1024c -exec rm -f {} \; || true
-
-      # ========================================================
-      # 11. 编译
-      # ========================================================
-      - name: 编译固件
-        id: compile
-        run: |
-          cd openwrt
-
-          echo "========================================"
-          echo "开始编译 360 T7"
-          echo "CPU线程: $(nproc)"
-          echo "========================================"
-
-          make -j1 V=s
-
-          echo "status=success" >> "$GITHUB_OUTPUT"
-
-          grep '^CONFIG_TARGET.*DEVICE.*=y' .config \
-            | sed -r 's/.*DEVICE_(.*)=y/\1/' \
-            > DEVICE_NAME
-
-          if [ -s DEVICE_NAME ]; then
-            echo "DEVICE_NAME=_$(cat DEVICE_NAME)" >> "$GITHUB_ENV"
-          fi
-
-          echo "FILE_DATE=_$(date +"%Y%m%d%H%M")" >> "$GITHUB_ENV"
-
-      # ========================================================
-      # 12. 检查磁盘空间
-      # ========================================================
-      - name: 检查磁盘空间
-        if: (!cancelled())
-        run: |
-          df -hT
-
-      # ========================================================
-      # 13. 上传 bin 目录
-      # ========================================================
-      - name: 上传 bin 目录
-        uses: actions/upload-artifact@v4
-        if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-        with:
-          name: OpenWrt_bin${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-          path: openwrt/bin
-
-      # ========================================================
-      # 14. 整理固件
-      # ========================================================
-      - name: 整理编译好的固件
-        id: organize
-        if: env.UPLOAD_FIRMWARE == 'true' && steps.compile.outputs.status == 'success' && !cancelled()
-        run: |
-          cd openwrt/bin/targets/mediatek/filogic
-
-          rm -rf packages
-
-          echo "FIRMWARE=$PWD" >> "$GITHUB_ENV"
-          echo "status=success" >> "$GITHUB_OUTPUT"
-
-          echo "========================================"
-          echo "固件输出目录："
-          pwd
-          echo ""
-          echo "固件文件："
-          ls -lh
-          echo "========================================"
-
-      # ========================================================
-      # 15. 上传 Actions Artifact
-      # ========================================================
-      - name: 上传固件 Artifacts
-        uses: actions/upload-artifact@v4
-        if: steps.organize.outputs.status == 'success' && !cancelled()
-        with:
-          name: OpenWrt_firmware${{ env.DEVICE_NAME }}${{ env.FILE_DATE }}
-          path: ${{ env.FIRMWARE }}
-
-      # ========================================================
-      # 16. 创建 Release
-      # ========================================================
-      - name: 生成 Release 标签
-        id: tag
-        if: env.UPLOAD_RELEASE == 'true' && steps.organize.outputs.status == 'success' && !cancelled()
-        run: |
-          echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> "$GITHUB_OUTPUT"
-
-          cat > "$RELEASE_FILE" <<EOF
-          ImmortalWrt 24.10
-          Kernel 6.6
-          Device: 360T7 / MT7981
-          Build Time: $(date +"%Y-%m-%d %H:%M:%S")
-          Source: $REPO_URL
-          Branch: $REPO_BRANCH
-          EOF
-
-          echo "status=success" >> "$GITHUB_OUTPUT"
-
-      # ========================================================
-      # 17. 发布 Release
-      # ========================================================
-      - name: 发布固件到 Release
-        uses: softprops/action-gh-release@v2
-        if: steps.tag.outputs.status == 'success' && !cancelled()
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ steps.tag.outputs.release_tag }}
-          body_path: ${{ env.RELEASE_FILE }}
-          files: ${{ env.FIRMWARE }}/*
-
-      # ========================================================
-      # 18. 清理历史 Workflow
-      # ========================================================
-      - name: 清理历史 Workflow
-        uses: Mattraks/delete-workflow-runs@main
-        with:
-          retain_days: 0
-          keep_minimum_runs: 2
-
-      # ========================================================
-      # 19. 删除旧 Release
-      # ========================================================
-      - name: 删除旧 Release
-        uses: dev-drprasad/delete-older-releases@master
-        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-        with:
-          keep_latest: 12
-          delete_tags: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: 删除旧的 Release 发布包
+      uses: dev-drprasad/delete-older-releases@master
+      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      with:
+        keep_latest: 12
+        delete_tags: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
